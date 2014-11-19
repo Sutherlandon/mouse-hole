@@ -7,7 +7,8 @@ set nocompatible
 
 "___ setting the look and feel of the editor ___________________________
 " sets syntax highlighting
-set syntax=php
+set syntax=on
+set filetype=on
 
 " sets tabs and indenting
 set ts=4
