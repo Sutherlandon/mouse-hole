@@ -11,6 +11,12 @@
 #define BUFFER_SIZE		250
 #define QUEUE_SIZE		5
 
+void error( const char* msg )
+{
+	perror(msg);
+	exit(0);
+}
+
 int main(int argc, char **argv)
 {
 	// initialize the server
@@ -40,7 +46,7 @@ int main(int argc, char **argv)
 
 		if( strcmp( argv[i], "-h" ) == 0 )
 		{
-			printf( "usage:\n\twebserver [options]\noptions:\n\t-p port (Default: 8888)\n\t-t number of worker threads (Default: 1, Range: 1-1000\n\t-f pather to static files (Default: .)\n\t-h show help message\n" );
+			printf( "usage:\n\twebserver [options]\noptions:\n\t-p port (Default: 8888)\n\t-t number of worker threads (Default: 1, Range: 1-1000)\n\t-f pather to static files (Default: .)\n\t-h show help message\n" );
 			return 0;
 		}
 	}
@@ -51,10 +57,7 @@ int main(int argc, char **argv)
 	printf("making socket...\n");
 	server_sockfd = socket( AF_INET, SOCK_STREAM, 0 );
 	if( server_sockfd == SOCKET_ERROR )
-	{
-		printf("ERROR opening socket\n");
-		return 0;
-	}
+		error("ERROR opening socket\n");
 
 	// connect to the host
 	printf("connecting to host on port %d...\n", port);
@@ -62,10 +65,7 @@ int main(int argc, char **argv)
 	server_address.sin_addr.s_addr = INADDR_ANY;
 	server_address.sin_port = htons(port);
 	if( bind( server_sockfd, (struct sockaddr *) &server_address, sizeof( server_address )) == SOCKET_ERROR )
-	{
-		printf("ERROR on binding");
-		return 0;
-	}
+		error("ERROR on binding");
 
 	// create the queue for listening, up to 5 connections may be waiting to connect to the server at a time
 	printf("making listening queue...\n");
@@ -75,27 +75,19 @@ int main(int argc, char **argv)
 	printf("listening...\n");
 	client_sockfd = accept( server_sockfd, (struct sockaddr *) &client_address, &client_size );
 	if( client_sockfd == SOCKET_ERROR )
-	{
-		printf("ERROR accepting client\n");
-		return 0;
-	}
+		error("ERROR accepting client\n");
+
 	printf("client connected\n");
 	bzero( buffer, 256); // zero out the buffer
 
 	// read the client's message
 	if( read( client_sockfd, buffer, 255 ) == SOCKET_ERROR )
-	{
-		printf( "ERROR reading from client socket\n" );
-		return 0;
-	}
+		error( "ERROR reading from client socket\n" );
 	printf( "Client says: %s\n", buffer );
 
 	// send a reply
 	if( write( client_sockfd, "message recieved", 16 ) == SOCKET_ERROR )
-	{
-		printf( "ERROR writing to client socket\n" );
-		return 0;
-	}
+		error( "ERROR writing to client socket\n" );
 	printf( "confirmation sent\n" );
 
 	// close the sockets
