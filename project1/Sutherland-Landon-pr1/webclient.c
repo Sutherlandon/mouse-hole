@@ -24,17 +24,21 @@ int main(int argc, char **argv)
 	// client settings
 	int client_sockfd, bytes;
 	struct sockaddr_in server_address;
-	struct hostent* server;
-	char buffer[256];
+	struct hostent *server;
+	char *buffer = (char *) malloc( 256 );
+	char *line = NULL;
+	size_t len = 0;
 	
 	// user input defaults
 	int port = 8888;
 	int thread_count = 1;
 	int requests = 10;
-	char* server_host="0.0.0.0";
-	char* workload_path="workload.txt";
-	char* metrics_path="metrics.txt";
-	char* download_path=NULL;
+	char *server_host="0.0.0.0";
+	char *workload_path = "workload.txt";
+	FILE *workload;
+	char *metrics_path="metrics.txt";
+	FILE *metrics;
+	char *download_path=NULL;
 	
 	// get arguments from the command line
 	int i;
@@ -63,19 +67,13 @@ int main(int argc, char **argv)
 
 		if( strcmp( argv[i], "-h" ) == 0 )
 		{
-			printf( "usage:\n\twebclient [options]\noptions:\n\t-s server address (Default: 0.0.0.0)\n\t-p port (Default: 8888)\n\t-t number of worker threads (Default: 1, Range: 1-100)\n\t-w path to workload file (Default: workload.txt)\n\t-d path to downloaded file directory (Default: null)\n\t-r number of total requests (Default: 10, Rangke: 1-1000)\n\t-m path to metric file (Default: metircs.txt)\n\t-h show help message\n" );
+			printf( "usage:\n\twebclient [options]\noptions:\n\t-s server address (Default: 0.0.0.0)\n\t-p port (Default: 8888)\n\t-t number of worker threads (Default: 1, Range: 1-100)\n\t-w path to workload file (Default: workload.txt)\n\t-d path to downloaded file directory (Default: null)\n\t-r number of total requests (Default: 10, Range: 1-1000)\n\t-m path to metric file (Default: metircs.txt)\n\t-h show help message\n" );
 			return 0;
 		}
 	}
 
 	// initialize the client
 	printf( "initializing client...\n" );
-
-	// create the socket
-	printf( "creating socket...\n" );
-	client_sockfd = socket( AF_INET, SOCK_STREAM, 0 );
-	if( client_sockfd == SOCKET_ERROR )
-		error( "Could not create socket\n" );
 	
 	// get the server
 	printf( "finding server...\n" );
@@ -85,30 +83,41 @@ int main(int argc, char **argv)
 		printf( "ERROR no such host %s", server_host );
 		return 0;
 	}
-	
+
 	// save the server information
 	// zero out the server address
-	bzero((char*) &server_address, sizeof( server_address )); 
+	bzero((char *) &server_address, sizeof( server_address ));
 	server_address.sin_family = AF_INET;
 	server_address.sin_port = htons(port);
 	// copy the server host address
-	bcopy((char*) server->h_addr, (char*) &server_address.sin_addr.s_addr, server->h_length );
+	bcopy((char *) server->h_addr, (char *) &server_address.sin_addr.s_addr, server->h_length );
 
-	// connect to the server
-	printf( "connecting to the server...\n" );
-	if( connect( client_sockfd, (struct sockaddr *) &server_address, sizeof( server_address )) == SOCKET_ERROR )
-		error( "ERROR could not connect to server\n" );
+	// open workload file
+	printf( "opening workload: %s\n", workload_path );
+	workload = fopen( workload_path, "r" );
+	if( workload == NULL )
+		error( "could not open workload file\n" );
 
-	// get messages to send
-	do {
-		// get the message to send
-		printf( "Please enter a message: " );
-		bzero( buffer, 256 );
-		fgets( buffer, 255, stdin );
+	printf( "reading...\n" );
+	// read the file and request the files
+	while(( bytes = getline( &line, &len, workload )) != -1 )
+	{
+		// create the socket
+		printf( "creating socket...\n" );
+		client_sockfd = socket( AF_INET, SOCK_STREAM, 0 );
+		if( client_sockfd == SOCKET_ERROR )
+			error( "Could not create socket\n" );
+
+		// connect to the server
+		printf( "connecting to the server...\n" );
+		if( connect( client_sockfd, (struct sockaddr *) &server_address, sizeof( server_address )) == SOCKET_ERROR )
+			error( "ERROR could not connect to server\n" );
 	
-		// use the command 'exit' to exit the client and stop sending messages
-		if( strcmp( buffer, "exit" ) == 10 )
-			break;
+		// get the message to send
+		//bzero( buffer, 256 );
+		strcpy( buffer, "getFile GET " );
+		strcat( buffer, line );
+		printf( "%s\n", buffer );
 
 		// write the message
 		bytes = write( client_sockfd, buffer, strlen( buffer ));
@@ -123,11 +132,16 @@ int main(int argc, char **argv)
 		printf( "%s\n", buffer );
 		printf( "%d bytes were received\n", bytes );
 
-	} while( 1 ); // always ask for another input
+		// close the connection to the server
+		printf( "closing the socket. bytes: %d\n", bytes );
+		close( client_sockfd );
+	}
 
-	// close the socket and leave the program
-	printf( "closing the socket.\n" );
-	close( client_sockfd );
+	// close the file
+	fclose( workload );
+
 	return 0;
+
+	//fflush(stdout);
 }
 

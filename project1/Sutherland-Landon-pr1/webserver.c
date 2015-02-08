@@ -73,27 +73,32 @@ int main(int argc, char **argv)
 
 	// listen for incoming clients and accept them
 	printf("listening...\n");
-	client_sockfd = accept( server_sockfd, (struct sockaddr *) &client_address, &client_size );
-	if( client_sockfd == SOCKET_ERROR )
-		error("ERROR accepting client\n");
-	printf("client connected\n");
 	do {
+		client_sockfd = accept( server_sockfd, (struct sockaddr *) &client_address, &client_size );
+		if( client_sockfd == SOCKET_ERROR )
+			error("ERROR accepting client\n");
+		printf( "----------------------------------\n" );
+
+		printf("client connected\n");
 		bzero( buffer, 256); // zero out the buffer
 
 		// read the client's message
 		if( read( client_sockfd, buffer, 255 ) == SOCKET_ERROR )
 			error( "ERROR reading from client socket\n" );
-		printf( "Client says: %s\n", buffer );
+		printf( "Client says: %s", buffer );
 
 		// send a reply
-		if( write( client_sockfd, "message recieved", 16 ) == SOCKET_ERROR )
+		if( write( client_sockfd, buffer, strlen( buffer )) == SOCKET_ERROR )
 			error( "ERROR writing to client socket\n" );
 		printf( "confirmation sent\n" );
 
-	} while( strcmp( buffer, "exit" ) != 0 );
+		// close this client
+		close( client_sockfd );
+		printf( "client disconnected\n" );
+
+	} while( 1 ); // always listen for new clients
 
 	// close the sockets
-	close( client_sockfd );
 	close( server_sockfd );
 	return 0;
 }
