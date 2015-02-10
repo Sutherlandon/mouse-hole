@@ -25,6 +25,17 @@ int intlen( int i )
 	return n;
 }
 
+// takes a string and replaces \n with \0
+void strReplace( char *line, char a, char b )
+{
+    while( *line != 0 )
+    {
+        if( *line == a )
+            *line = b;
+        line++;
+    }
+}
+
 /**
  * Get the name of a file to server from a request
  * @param const char* request
@@ -143,6 +154,8 @@ int main(int argc, char **argv)
 
 		if( file_to_serve != NULL )
 		{
+			int total_bytes = 0;
+
 			// get the file size
 			fseek( file_to_serve, 0L, SEEK_END );
 			file_size = ftell( file_to_serve );
@@ -151,20 +164,26 @@ int main(int argc, char **argv)
 
 			// send the header and the first byte of the file
 			bzero( buffer, 256); // zero out the buffer
+			bzero( reply, 256); // zero out the buffer
 			if(( bytes_read = fread( buffer, 1, 1, file_to_serve )) != 0 )
 			{
 				// format the reply
-				snprintf( reply, 255, "%s %d %s", get_file_ok, file_size, buffer );
-				reply_size = 2 + sizeof( get_file_ok ) +  intlen( file_size ) + bytes_read;
+				snprintf( reply, 255, "%s %d", get_file_ok, file_size );
+				strReplace( reply, '\0', ' ' );
+				reply_size = 3 + sizeof( get_file_ok ) + intlen( file_size );
 				printf( "reply size: %d\n", reply_size );
 
 				// write each piece of the file to the socket
 				if(( bytes = send( client_sockfd, reply, reply_size, 0 )) == SOCKET_ERROR )
 					error( "ERROR writing to client socket\n" );
-				printf( "sent: %s (%d bytes)\n", reply, bytes );
+				printf( "sent: '%s' (%d bytes)\n", reply, bytes );
+
+				// wait for client to ask for the next piece
+				recv( client_sockfd, buffer, strlen("continue"), 0 );
 
 				bzero( buffer, 256); // zero out the buffer
 				bzero( reply, 256); // zero out the buffer
+				fseek( file_to_serve, 0L, SEEK_SET ); // reset file pointer to the beginning
 			}
 
 			// send the rest of the file 128 bytes at a time
@@ -173,18 +192,25 @@ int main(int argc, char **argv)
 				// write each piece of the file to the socket
 				if(( bytes = send( client_sockfd, buffer, bytes_read, 0 )) == SOCKET_ERROR )
 					error( "ERROR writing to client socket\n" );
-				printf( "sent: %d bytes\n", bytes );
+				//printf( "sent: %d bytes\n", bytes );
+				total_bytes += bytes;
+
+				// wait for client to ask for the next piece
+				recv( client_sockfd, buffer, strlen("continue"), 0 );
 
 				bzero( buffer, 256); // zero out the buffer
 				bzero( reply, 256); // zero out the buffer
 			}
 
+			printf( "bytes left: %ld\n", file_size - ftell( file_to_serve ));
+
 			// reading in 128 byte chunks we might miss the last few
 			// if file_size % 128 != 0 So get the last few
 			i = 0;
 			bytes_read = 0;
-			while( fread( &buffer[i++], 1, 1, file_to_serve ) != 0 )
+			while( fread( &buffer[i++], 1, 1, file_to_serve ) == 1 )
 				bytes_read++;
+			//printf( "%d, %d", i, bytes_read );
 
 			// send the last bit of the file
 			if( bytes_read > 0 )
@@ -193,10 +219,13 @@ int main(int argc, char **argv)
 				if(( bytes = send( client_sockfd, buffer, bytes_read, 0 )) == SOCKET_ERROR )
 					error( "ERROR writing to client socket\n" );
 				printf( "sent: %d bytes\n", bytes );
+				total_bytes += bytes;
 
 				bzero( buffer, 256); // zero out the buffer
 				bzero( reply, 256); // zero out the buffer
 			}
+
+			printf( "total bytes sent: %d\n", total_bytes );
 
 			// close the file
 			fclose( file_to_serve );

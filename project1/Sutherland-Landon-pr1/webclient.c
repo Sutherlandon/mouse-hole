@@ -30,6 +30,15 @@ void stripNewline( char *line )
 	}
 }
 
+// given and int, returns how many digits are in it
+int intlen( int i )
+{
+    int n = 0;
+    while( i ) { i /= 10; n++; }
+    return n;
+}
+
+
 /**
  * Takes a server response and parses it
  * @param const char* respose
@@ -38,12 +47,13 @@ void stripNewline( char *line )
  *		A code based on what was parsed
  *		code: -1, parse error, server response was incorrectly formatted
  *		code: 0, NO_FILE_FOUND, the requested file was not found
- *		code: > 0, the index in the respose to begin reading the data
+ *		code: > 0, the size of the file to be transfered
  */
-int readResponse( const char* response, char** file_bytes, int file_size )
+int readResponse( const char* response )
 {
 	int code = -1;
 	char *token, *rest = strdup( response );
+	printf( "%s\n", rest );
 
 	// check the first token (GetFile)
 	if(( token = strsep( &rest, " " )) != NULL )
@@ -54,17 +64,10 @@ int readResponse( const char* response, char** file_bytes, int file_size )
 			{
 				if( strcmp( token, "OK" ) == 0 )
 				{
-	printf( "saving file size\n" );
-	fflush( stdout );
-					file_size = atoi( strsep( &rest, " " ));
-	printf( "%d bytes - saving file bytes\n", file_size );
-	printf( "%lu, %lu\n", sizeof( *file_bytes ), sizeof( strdup(rest) ));
-	fflush( stdout );
-					strcpy( *file_bytes, rest );
-	printf( "saved bytes: %s\n", *file_bytes );
-	fflush( stdout );
-					code = 1;
+					// get the file size
+					code = atoi( rest );
 				} else {
+					// return file not found code
 					if( strcmp( token, "FILE_NOT_FOUND" ) == 0 )
 						code = 0;
 				}
@@ -77,11 +80,11 @@ int readResponse( const char* response, char** file_bytes, int file_size )
 int main(int argc, char **argv)
 {
 	// client settings
-	int client_sockfd, bytes, total_bytes;
+	int client_sockfd, bytes;
 	struct sockaddr_in server_address;
 	struct hostent *server;
 	char *buffer = (char *) malloc( 256 );
-	char *line = NULL;
+	char *file_name = NULL;
 	size_t len = 0;
 	
 	// user input defaults
@@ -158,7 +161,7 @@ int main(int argc, char **argv)
 		error( "ERROR could not open workload file\n" );
 
 	// read the file and request the files
-	while(( bytes = getline( &line, &len, workload )) != -1 )
+	while(( bytes = getline( &file_name, &len, workload )) != -1 )
 	{
 		// create the socket
 		client_sockfd = socket( AF_INET, SOCK_STREAM, 0 );
@@ -172,8 +175,8 @@ int main(int argc, char **argv)
 	
 		// get the message to send
 		bzero( buffer, 256 ); // zero out the buffer
-		stripNewline( line );
-		snprintf( buffer, 255, "GetFile GET %s", line );
+		stripNewline( file_name );
+		snprintf( buffer, 255, "GetFile GET %s", file_name );
 		printf( "%s\n", buffer );
 
 		// send the file request
@@ -185,24 +188,49 @@ int main(int argc, char **argv)
 		// receive the server response
 		bzero( buffer, 256 ); // zero out the buffer
 		bytes = recv( client_sockfd, buffer, 255, 0 );
-	printf( "received %d bytes\n", bytes );
-	fflush( stdout );
-		response_code = readResponse( buffer, &file_bytes, file_size );
-	printf( "parsed response" );
-	fflush( stdout );
-		if( response_code == 1 )
+		printf( "received: '%s' (%d bytes)\n", buffer, bytes );
+		file_size = readResponse( buffer );
+
+		// based on the file_size, read in the file or
+		// print the correct response
+		if( file_size > 0 )
 		{
-			printf( "%s (%d bytes)\n", file_bytes, file_size );
+			// create a new file to write to
+			FILE *download_file;
+			char *download_file_path = (char *) malloc( 256 );
+			int total_bytes = 0;
+
+			// set the file name
+			snprintf( download_file_path, 255, "%s%s", download_path, file_name );
+
+			// create the file or erase it if it does exist
+			download_file = fopen( download_file_path, "wb" );
+			fclose( download_file );
+
+			// ask for the first piece of the file
+			send( client_sockfd, "continue", strlen("continue"), 0 );
+
 			// process incoming file
-			while(( bytes = recv( client_sockfd, buffer, 255, 0 )) > 0 )
+			while(( bytes = recv( client_sockfd, buffer, 255, 0 )) > 0 /*&& total_bytes <= file_size*/ )
 			{
+				// open the file to write
+				download_file = fopen( download_file_path, "ab" );
+
+				// write to file
+				fwrite( buffer, 1, bytes, download_file );
 				total_bytes += bytes;
-				//printf( "received: %d bytes\n", bytes );
+				//printf( "wrote: %s\n", buffer );
+
+				// close file
+				fclose( download_file );
+				
+				// ask for next piece
+				send( client_sockfd, "continue", strlen("continue"), 0 );
 				bzero( buffer, 256 ); // zero out the buffer
 			}
-			printf( "received: %d bytes\n", total_bytes );
+			printf( "total bytes received: %d\n", total_bytes );
 		}
-		else if( response_code == 0 )
+		else if( file_size == 0 )
 		{
 			// print no file found
 			printf( "Server could not find the specified file (FILE_NOT_FOUND)\n" );
@@ -212,7 +240,7 @@ int main(int argc, char **argv)
 		}
 
 		// close the connection to the server
-		printf( "closing the socket. bytes: %d\n", bytes );
+		printf( "closing the socket\n-------------------------------------------\n" );
 		close( client_sockfd );
 	}
 
