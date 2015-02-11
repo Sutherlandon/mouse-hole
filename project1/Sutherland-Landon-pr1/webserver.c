@@ -81,14 +81,13 @@ int main(int argc, char **argv)
 	int thread_count = 1;
 
 	// serving variables
+	const char *get_file_ok = "GetFile OK";
+	const char *get_file_not_found = "GetFile FILE_NOT_FOUND 0 0";
+	FILE *file_to_serve;
+	char *file_name = (char *) malloc( 256 );
 	char *buffer = (char *) malloc( 256 );
 	char *reply = (char *) malloc( 256 );
-	char *get_file_ok = "GetFile OK";
-	char *get_file_not_found = "GetFile FILE_NOT_FOUND 0 0";
-	char *file_name = (char *) malloc( 256 );
-	int file_size = 0;
-	FILE *file_to_serve;
-	int last_read = 1, reply_size = 0;
+	int file_size = 0, reply_size = 0;
 	int bytes_read = 0, bytes = 0;
 	
 	// get arguments from the command line
