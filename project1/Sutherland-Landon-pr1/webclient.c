@@ -12,7 +12,7 @@
 #define SOCKET_ERROR	-1
 #define BUFFER_SIZE		250
 #define QUEUE_SIZE		5
-#define MAX_THREADS		1000
+#define MAX_THREADS		100
 
 // struct for worker threads
 struct worker {
@@ -158,38 +158,54 @@ void *getFile( void *worker_data_ptr )
 			// create a new file to write to
 			FILE *download_file;
 			char *download_file_path = (char *) malloc( 256 );
+			int download = 0; // 0 for we have no path and should discard data received
 
-			// set the file name
-			snprintf( download_file_path, 255, "%s%s", worker_data->download_path, file_name );
+			// if we don't have a download_path set, we can discard any data we receive
+			if( worker_data->download_path )
+			{
+				// 1 for we have a path, and should download
+				download = 1;
 
-			// create the file or clear it if it does exist
-			download_file = fopen( download_file_path, "wb" );
-			fclose( download_file );
+				// set the file name
+				snprintf( download_file_path, 255, "%s%s", worker_data->download_path, file_name );
+
+				// create the file or clear it if it does exist
+				download_file = fopen( download_file_path, "wb" );
+				fclose( download_file );
+			}
 
 			// ask for the first piece of the file
 			send( client_sockfd, "continue", strlen("continue"), 0 );
 
 			// process incoming file
-			while(( bytes = recv( client_sockfd, buffer, 255, 0 )) > 0 /*&& total_bytes <= file_size*/ )
+			while(( bytes = recv( client_sockfd, buffer, 255, 0 )) > 0 )
 			{
-				// open the file to write
-				download_file = fopen( download_file_path, "ab" );
+				// only save what we receive if a download path was specified
+				if( download )
+				{
+					// open the file to write
+					download_file = fopen( download_file_path, "ab" );
 
-				// write to file
-				fwrite( buffer, 1, bytes, download_file );
+					// write to file
+					fwrite( buffer, 1, bytes, download_file );
+					//printf( "wrote: %s\n", buffer );
+
+					// close file
+					fclose( download_file );
+				}
+
+				// save they number of bytes received
 				total_bytes += bytes;
-				//printf( "wrote: %s\n", buffer );
-
-				// close file
-				fclose( download_file );
 				
 				// ask for next piece
 				send( client_sockfd, "continue", strlen("continue"), 0 );
 				bzero( buffer, 256 ); // zero out the buffer
 			}
 
-			printf( "received: '%s' (%d bytes)\n", file_name, total_bytes );
-			//printf( "DONE file_name: %s (%d bytes)\n", file_name, total_bytes );
+			if( download )
+				printf( "received: '%s' (%d bytes)\n", file_name, total_bytes );
+			else
+				printf( "received: '%s' (%d bytes) NOT SAVED\n", file_name, total_bytes );
 		}
 		else if( file_size == 0 )
 		{
@@ -200,8 +216,6 @@ void *getFile( void *worker_data_ptr )
 			printf( "ERROR incorrect server response format, you may be under attack!\n" );
 			printf( "received: '%s'\n", buffer );
 		}
-
-		//printf( "DONE filename: %s, bytes: %d\n", file_name, total_bytes );
 
 		// save the metrics
 		worker_data->total_bytes += total_bytes;
@@ -288,41 +302,70 @@ int main(int argc, char **argv)
 	// copy the server host address
 	bcopy((char *) server->h_addr, (char *) &server_address.sin_addr.s_addr, server->h_length );
 
-	// open workload file
-	printf( "opening workload: %s\n", workload_path );
-	workload = fopen( workload_path, "r" );
-	if( workload == NULL )
-		error( "ERROR could not open workload file\n" );
-
 	// create the workload, distribute it, and spawn threads!
 	pthread_t workers[thread_count];
 
 	printf( "creating workers' dataset...\n" );
+	if( !download_path )
+		printf( "WARNING No download path specified. Anything recieved will be discarded\n" );
+
 	// create the workers' dataset
-	for( i = 0; i < thread_count; i++ )
+	for( i = 0; i < thread_count && i < requests; i++ )
 	{
 		worker_data_array[i].id = i;
 		worker_data_array[i].download_path = download_path;
-		worker_data_array[i].num_requests = requests / thread_count;
+	}
+
+	// spread out the requests accross all the threads round robin style
+	for( i = 0, j = 0; i < requests; i++, j = (j+1) % thread_count )
+	{
+		printf( "(%d,%d), ", i, j );
+		fflush( stdout );
+		worker_data_array[j].num_requests += 1;
 	}
 
 	// read the file and distribute the workload round robin style
-	printf( "distributing workload...\n" );
+	// in the case of more threads than files, we will start reading
+	// the file from the top again and assign different threads
+	// duplicate files to get
+	printf( "distributing workload (%s)...\n", workload_path );
+	int work_counter = 0;
 	i = 0; j = 0;
-	while( getline( &file_name, &len, workload ) != -1 )
+	while( work_counter < thread_count && work_counter < requests)
 	{
-		stripNewline( file_name );
-		worker_data_array[i].file_names[j] = strdup( file_name );
-		worker_data_array[i++].num_files = j+1;
+		// open workload file
+		workload = fopen( workload_path, "r" );
+		if( workload == NULL )
+			error( "ERROR could not open workload file\n" );
 
-		if( i == thread_count ) {
-			i = 0; j++;
+		// assign files to workers
+		while( getline( &file_name, &len, workload ) != -1 &&
+				work_counter < thread_count && work_counter < requests )
+		{
+			stripNewline( file_name );
+			worker_data_array[i].file_names[j] = strdup( file_name );
+			worker_data_array[i++].num_files = j+1;
+
+			// if we have assigned all the workers a file
+			// then then go around and assign them all another
+			// until all the files have been assigned
+			if( i == thread_count ) {
+				i = 0; j++;
+			}
+
+			// count how many threads get work so we can know if we need to
+			// have threads double up on files to get so that every thread
+			// created gets to do something
+			work_counter++;
 		}
+
+		// close the file
+		fclose( workload );
 	}
 
 	//spawn the threads
 	printf( "spawning threads...\n" );
-	for( i = 0; i < thread_count; i++ )
+	for( i = 0; i < thread_count && i < requests; i++ )
 	{
 		// create a new thread
 		response_code = pthread_create( &workers[i], NULL, getFile, (void *) &worker_data_array[i] );
@@ -337,9 +380,8 @@ int main(int argc, char **argv)
 	//for( i = 0; i < thread_count; i++ )
 	//	total_bytes_received += workers[i].total_bytes;
 
-	// close the file
-	fclose( workload );
 	pthread_exit( NULL );
+	return 0;
 
 	//fflush(stdout);
 }
