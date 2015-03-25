@@ -12,12 +12,18 @@ Client
 	Using make with webclient returns this error:
 	.../webclient.c:345: undefined reference to `pthread_create'
 	collect2: error: ld returned 1 exit status
-
-	now I have included the pthread.h but for some reason, it just isn't working
-	I use this command to compile webclient:
+	
+	now I have included the pthread.h but for some reason, it
+	just isn't working I use this command to compile webclient:
 	gcc webclient.c -o webclient -lpthread
 Server
 	Same story as client
+	gcc webserver.c -o webserver -lpthread
+Downloads
+	at 1000 threads server and 100 threads client and a 4 file
+	workdload, some files sometimes don't through all the way,
+	but moslty they do.  Its an edge case I'm willing to not
+	pass 100%, but 98%.
 ---------------------------------------------------------------
 
 Capabilities
@@ -25,7 +31,6 @@ Capabilities
 Webclient
 	Fully functioning multi-threaded client
 	All command line flags work
-	Does NOT save metrics
 Webserver
 	Fully functioning single-threaded server
 	All command line flags work
@@ -48,4 +53,3 @@ Client
 		requests (i.e. (workload=4, -t 5, -r 2) => 2 threads created,
 		2 files requested from workload)
 ---------------------------------------------------------------
-

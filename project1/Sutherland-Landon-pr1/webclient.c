@@ -8,6 +8,7 @@
 #include <netinet/in.h>
 #include <netdb.h>
 #include <pthread.h>
+#include <time.h>
 
 #define SOCKET_ERROR	-1
 #define BUFFER_SIZE		250
@@ -29,6 +30,8 @@ struct worker {
 struct sockaddr_in server_address;
 struct hostent *server;
 struct worker worker_data_array[MAX_THREADS];
+int threads_running = 0;
+int threads_flag = 0;
 
 // print errors and kill the program
 void error( const char* msg )
@@ -106,13 +109,15 @@ void *getFile( void *worker_data_ptr )
 	int client_sockfd, bytes;
 	char *buffer = (char *) malloc( 256 );
 	char *file_name = NULL;
+	time_t start_time, end_time;
 
 	// server response variables
 	int file_size;
 	int total_bytes = 0;
 
 	// report to user
-	printf( "Worker %d beginning work\n", worker_data->id );
+	printf( "Worker %d: beginning work\n", worker_data->id );
+	start_time = time( NULL );
 
 	// download each file assigned to this worker
 	int i;
@@ -138,7 +143,7 @@ void *getFile( void *worker_data_ptr )
 		bzero( buffer, 256 ); // zero out the buffer
 		stripNewline( file_name );
 		snprintf( buffer, 255, "GetFile GET %s", file_name );
-		printf( "%s\n", buffer );
+		printf( "Worker %d: %s\n", worker_data->id, buffer );
 
 		// send the file request
 		bytes = send( client_sockfd, buffer, strlen( buffer ), 0 );
@@ -202,10 +207,13 @@ void *getFile( void *worker_data_ptr )
 				bzero( buffer, 256 ); // zero out the buffer
 			}
 
+			// stop the clock
+			end_time = time ( NULL );
+
 			if( download )
-				printf( "received: '%s' (%d bytes)\n", file_name, total_bytes );
+				printf( "Worker %d: received: '%s' (%d bytes)\n", worker_data->id, file_name, total_bytes );
 			else
-				printf( "received: '%s' (%d bytes) NOT SAVED\n", file_name, total_bytes );
+				printf( "Worker %d: received: '%s' (%d bytes) NOT SAVED\n", worker_data->id, file_name, total_bytes );
 		}
 		else if( file_size == 0 )
 		{
@@ -214,19 +222,25 @@ void *getFile( void *worker_data_ptr )
 		} else {
 			// code=-1, print formatting error
 			printf( "ERROR incorrect server response format, you may be under attack!\n" );
-			printf( "received: '%s'\n", buffer );
+			printf( "Worker %d: received: '%s'\n", worker_data->id, buffer );
 		}
 
 		// save the metrics
 		worker_data->total_bytes += total_bytes;
-		worker_data->response_time = 12;
+		worker_data->response_time = (int)(end_time-start_time);
 
 		// close the socket
 		close( client_sockfd );
 	}
 
+	// wait for any other thread to update the count
+	while( threads_flag );
+	threads_flag = 1; // set the lock
+	threads_running -= 1; // decrement the counter
+	threads_flag = 0; // release the lock
+
 	// close the connection to the server
-	printf( "Worker %d: done, bytes received: %d\n", worker_data->id, worker_data->total_bytes );
+	printf( "Worker %d: done, received: %d bytes, response time: %d\n", worker_data->id, worker_data->total_bytes, worker_data->response_time );
 	pthread_exit( NULL );
 }
 
@@ -234,7 +248,7 @@ void *getFile( void *worker_data_ptr )
 int main(int argc, char **argv)
 {
 	// client settings
-	FILE *workload, *metrics;
+	FILE *workload;
 	char *file_name = NULL;
 	int i, j;
 	
@@ -250,7 +264,7 @@ int main(int argc, char **argv)
 
 	// server response
 	int response_code;
-	int total_bytes_recieved = 0;
+	int threads_total = 0;
 	
 	// get arguments from the command line
 	for( i = 1; i < argc; i++ )
@@ -318,11 +332,7 @@ int main(int argc, char **argv)
 
 	// spread out the requests accross all the threads round robin style
 	for( i = 0, j = 0; i < requests; i++, j = (j+1) % thread_count )
-	{
-		printf( "(%d,%d), ", i, j );
-		fflush( stdout );
 		worker_data_array[j].num_requests += 1;
-	}
 
 	// read the file and distribute the workload round robin style
 	// in the case of more threads than files, we will start reading
@@ -374,15 +384,46 @@ int main(int argc, char **argv)
 			printf( "ERROR return code from pthread_create() is %d\n", response_code );
 			return -1;
 		}
+
+		// add a thread to the running count
+		threads_running++;
+		threads_total++;
 	}
 
-	// calculate and save metrics
-	//for( i = 0; i < thread_count; i++ )
-	//	total_bytes_received += workers[i].total_bytes;
+	// wait for all the workers to finish
+	while( threads_running != 0 );
+
+	// calculate metrics
+	FILE *metrics;
+	char *metrics_str = (char *) malloc( 512 );
+	int total_bytes_received = 0;
+	int total_response_time = 0;
+	int average_response_time;
+	int average_throughput;
+
+	// totals
+	for( i = 0; i < threads_total; i++ )
+	{
+		total_bytes_received += worker_data_array[i].total_bytes;
+		total_response_time += worker_data_array[i].response_time;
+	}
+	
+	// averages
+	average_response_time = total_response_time / threads_total;
+	average_throughput = total_bytes_received / total_response_time;
+	
+	// save metrics
+	metrics = fopen( metrics_path, "w" );
+	if( metrics == NULL )
+		error( "ERROR could not open metrics file\n" );
+
+	snprintf( metrics_str, 511, "From workload: %s\n\ttotal bytes received:\t\t%dB\n\taverage response time:\t\t%ds\n\taverage throughput:\t\t%d B/s\n", workload_path, total_bytes_received, average_response_time, average_throughput );
+	fwrite( metrics_str, 1, strlen(metrics_str), metrics );
+	fclose( metrics );
+	printf( "\nThese metrics saved at: %s\n", metrics_path );
+	printf( "%s\n", metrics_str );
 
 	pthread_exit( NULL );
 	return 0;
-
-	//fflush(stdout);
 }
 
