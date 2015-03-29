@@ -7,16 +7,17 @@
 #include <signal.h>
 
 #include "gfserver.h"
-                                                                \
-#define USAGE                                                                 \
-"usage:\n"                                                                    \
-"  webproxy [options]\n"                                                     \
-"options:\n"                                                                  \
-"  -p [listen_port]    Listen port (Default: 8888)\n"                         \
-"  -t [thread_count]   Num worker threads (Default: 1, Range: 1-1000)\n"      \
-"  -s [server]         The server to connect to (Default: Udacity S3 instance)"\
-"  -h                  Show this help message\n"                              \
-"special options:\n"                                                          \
+#include <curl/curl.h>
+
+#define USAGE                                                                   \
+"usage:\n"                                                                      \
+"  webproxy [options]\n"                                                        \
+"options:\n"                                                                    \
+"  -p [listen_port]    Listen port (Default: 8888)\n"                           \
+"  -t [thread_count]   Num worker threads (Default: 1, Range: 1-1000)\n"        \
+"  -s [server]         The server to connect to (Default: Udacity S3 instance)" \
+"  -h                  Show this help message\n"                                \
+"special options:\n"                                                            \
 "  -d [drop_factor]    Drop connects if f*t pending requests (Default: 5).\n"
 
 
@@ -24,12 +25,12 @@
 static struct option gLongOptions[] = {
   {"port",          required_argument,      NULL,           'p'},
   {"thread-count",  required_argument,      NULL,           't'},
-  {"server",        required_argument,      NULL,           's'},         
+  {"server",        required_argument,      NULL,           's'},
   {"help",          no_argument,            NULL,           'h'},
   {NULL,            0,                      NULL,             0}
 };
 
-extern ssize_t handle_with_file(gfcontext_t *ctx, char *path, void* arg);
+extern ssize_t handle_with_curl(gfcontext_t *ctx, char *path, void* arg);
 
 static gfserver_t gfs;
 
@@ -68,17 +69,20 @@ int main(int argc, char **argv) {
         break;
       case 's': // file-path
         server = optarg;
-        break;                                          
+        break;
       case 'h': // help
         fprintf(stdout, "%s", USAGE);
         exit(0);
-        break;       
+        break;
       default:
         fprintf(stderr, "%s", USAGE);
         exit(1);
     }
   }
-  
+
+  /* Initialize LibCurl */
+  curl_global_init( CURL_GLOBAL_ALL );
+
   /* SHM initialization...*/
 
   /*Initializing server*/
@@ -87,10 +91,12 @@ int main(int argc, char **argv) {
   /*Setting options*/
   gfserver_setopt(&gfs, GFS_PORT, port);
   gfserver_setopt(&gfs, GFS_MAXNPENDING, 10);
-  gfserver_setopt(&gfs, GFS_WORKER_FUNC, handle_with_file);
+  gfserver_setopt(&gfs, GFS_WORKER_FUNC, handle_with_curl);
   for(i = 0; i < nworkerthreads; i++)
-    gfserver_setopt(&gfs, GFS_WORKER_ARG, i, "data");
+    gfserver_setopt( &gfs, GFS_WORKER_ARG, i, server );
 
   /*Loops forever*/
   gfserver_serve(&gfs);
+
+  curl_global_cleanup();
 }
