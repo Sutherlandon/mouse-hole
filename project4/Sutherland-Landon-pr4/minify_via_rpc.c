@@ -23,8 +23,8 @@ CLIENT *get_minify_client( char *server )
 	// create the client handle
 	if(( client = clnt_create( server, MINIFY_PROG, MINIFY_VERS, "tcp")) == NULL )
 	{
-		clnt_pcreateerror( "clnt_create() failed" );
-		exit(2);
+		clnt_pcreateerror( "clnt_create() failed\n" );
+		exit(1);
 	}
 
 	return client;
@@ -37,16 +37,15 @@ CLIENT *get_minify_client( char *server )
 void *minify_via_rpc( CLIENT* client, void* src_val, size_t src_len, size_t *dst_len )
 {
 	jpeg orig_image = create_image( src_val, src_len );
-	jpeg *small_image = (jpeg *) malloc( sizeof( jpeg ));
-	//jpeg *small_image_ptr = &small_image;
+	jpeg *small_image; // = (jpeg *) malloc( sizeof( jpeg ));
 
 	if(( minify_jpeg_1( orig_image, small_image, client )) != RPC_SUCCESS )
 	{
-		clnt_perror( client, "minify_jpeg_1() failed" );
-		exit(3);
+		clnt_perror( client, "minify_jpeg_1() failed\n" );
+		exit(1);
 	}
 
-	//dst_len = (size_t) &(small_image->image.image_len);
+	dst_len = (size_t *) &(small_image->image.image_len);
 	return (void *) small_image->image.image_val;
 }
 
