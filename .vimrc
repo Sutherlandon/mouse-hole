@@ -9,6 +9,7 @@ set nocompatible
 " sets syntax highlighting
 set syntax=on
 set filetype=on
+set hlsearch
 
 " sets tabs and indenting
 set ts=4
