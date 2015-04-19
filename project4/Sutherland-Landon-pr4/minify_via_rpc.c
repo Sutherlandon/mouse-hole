@@ -6,10 +6,10 @@
  */
 jpeg create_image( void *src_val, size_t src_len )
 {
-	jpeg *image = (jpeg *) malloc( sizeof( jpeg ));
-	image->image.image_len = src_len;
-	image->image.image_val = (char *) src_val;
-	return *(image);
+	jpeg image;// = (jpeg *) malloc( sizeof( jpeg ));
+	image.image.image_len = src_len;
+	image.image.image_val = (char *) src_val;
+	return image;
 }
 
 /**
@@ -37,15 +37,15 @@ CLIENT *get_minify_client( char *server )
 void *minify_via_rpc( CLIENT* client, void* src_val, size_t src_len, size_t *dst_len )
 {
 	jpeg orig_image = create_image( src_val, src_len );
-	jpeg *small_image; // = (jpeg *) malloc( sizeof( jpeg ));
+	jpeg small_image = create_image( NULL, 0 );
 
-	if(( minify_jpeg_1( orig_image, small_image, client )) != RPC_SUCCESS )
+	if(( minify_jpeg_1( orig_image, &small_image, client )) != RPC_SUCCESS )
 	{
 		clnt_perror( client, "minify_jpeg_1() failed\n" );
 		exit(1);
 	}
 
-	dst_len = (size_t *) &(small_image->image.image_len);
-	return (void *) small_image->image.image_val;
+	*dst_len = (size_t) small_image.image.image_len;
+	return (void *) small_image.image.image_val;
 }
 

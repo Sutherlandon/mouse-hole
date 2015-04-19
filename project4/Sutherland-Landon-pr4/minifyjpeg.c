@@ -4,9 +4,6 @@
 
 bool_t minify_jpeg_1_svc( jpeg orig_image, jpeg *small_image, struct svc_req *rqstp)
 {
-	bool_t retval = 0;
-	small_image = (jpeg *) malloc( sizeof( jpeg ));
-
 	printf( "minify_init()... \n" );
 	fflush( stdout );
 
@@ -37,7 +34,7 @@ bool_t minify_jpeg_1_svc( jpeg orig_image, jpeg *small_image, struct svc_req *rq
 	printf( "done\n" );
 	fflush( stdout );
 
-	return retval;
+	return 1;
 }
 
 int minify_prog_1_freeresult (SVCXPRT *transp, xdrproc_t xdr_result, caddr_t result)

@@ -59,7 +59,6 @@ minify_prog_1(struct svc_req *rqstp, register SVCXPRT *transp)
 	if (retval > 0 && !svc_sendreply(transp, (xdrproc_t) _xdr_result, (char *)&result)) {
 		svcerr_systemerr (transp);
 	}
-	printf( "result: %s\n", (char *) &result );
 	if (!svc_freeargs (transp, (xdrproc_t) _xdr_argument, (caddr_t) &argument)) {
 		fprintf (stderr, "%s", "unable to free arguments");
 		exit (1);
