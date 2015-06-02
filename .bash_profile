@@ -1,6 +1,6 @@
 # .bash_profile
 # Created By Landon Sutherland
-# Last edited: 11/19/14
+# Last edited: 06/02/2015
 
 # Get the aliases and functions
 if [ -f ~/.bashrc ]; then
@@ -89,5 +89,5 @@ PROMPT_COMMAND='set_prompt'
 
 # Commands to run upon login
 cdhpc
-set http_proxy=http://proxyout.lanl.gov:8080
+export http_proxy=http://proxyout.lanl.gov:8080
 export PATH  
