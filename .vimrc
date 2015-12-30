@@ -1,5 +1,5 @@
-" ./vimrc created by Landon Sutherland                                                                                                                                 
-" last edit 9/11/2014
+" ./vimrc created by Landon Sutherland
+" last edit 12/30/2015
 
 " This must be first, because it changes other options as a side effect
 set nocompatible
@@ -7,6 +7,7 @@ set nocompatible
 
 "___ setting the look and feel of the editor ___________________________
 " sets syntax highlighting
+colorscheme slate
 set syntax=on
 set filetype=on
 set hlsearch
