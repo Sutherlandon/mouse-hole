@@ -15,6 +15,7 @@ alias ls="ls --color"
 alias sobash="source ~/.bash_profile"
 alias vibash="vim ~/.bash_profile && sobash"
 alias vivim="vim ~/.vimrc"
+alias sshprom="ssh prometj6@66.147.244.148"
 
 # Regular Colors
 # https://wiki.archlinux.org/index.php/Color_Bash_Prompt

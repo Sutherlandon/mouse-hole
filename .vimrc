@@ -7,7 +7,7 @@ set nocompatible
 
 "___ setting the look and feel of the editor ___________________________
 " sets syntax highlighting
-colorscheme slate
+colorscheme evolution
 set syntax=on
 set filetype=on
 set hlsearch
