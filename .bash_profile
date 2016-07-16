@@ -11,7 +11,6 @@ fi
 PATH=$PATH:$HOME/bin
 
 # alias's to make life easier
-alias ls="ls --color"
 alias sobash="source ~/.bash_profile"
 alias vibash="vim ~/.bash_profile && sobash"
 alias vivim="vim ~/.vimrc"
