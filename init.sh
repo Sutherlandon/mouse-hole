@@ -9,5 +9,5 @@ git config --global user.name "Landon Sutherland"
 git config --global user.email "Sutherlandon@gmail.com"
 git config --global push.default simple
 
-source .bash_profile
+source ~/.bash_profile
 echo "done"
