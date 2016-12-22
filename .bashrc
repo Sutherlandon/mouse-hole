@@ -1,6 +1,6 @@
-# .bash_profile
+# .bashrc
 # Created By Landon Sutherland
-# Last edited: 06/02/2015
+# Last edited: 12/22/2015
 
 # Get the aliases and functions
 if [ -f ~/.bashrc ]; then
@@ -32,36 +32,45 @@ white='\[\e[0;37m\]'        # White
 alias get_site="pwd | awk -F '/' '{ print \$4 }'"
 function set_prompt()
 {
-    # preserve the exit code of the last command
-    code=$?
-    site=$(get_site)
-    working_dir=${PWD##*/}
+	# preserve the exit code of the last command
+	user="$(whoami)"
+	code=$?
+	working_dir=${PWD##*/}
+	#site=$(get_site)
 
-    # get the site root if we are working on one and in it
-    if [ -z "$site" ] || [ $site == $working_dir ];
-    then
-        # don't display the site root
-        site=""
-    else
-        # color the site root
-        site="[$purple$site$white]"
-    fi
+	# get the site root if we are working on one and in it
+	#if [ -z "$site" ] || [ $site == $working_dir ];
+	#then
+		# don't display the site root
+	#	site=""
+	#else
+		# color the site root
+	#	site="[$purple$site$white]"
+	#fi
 
-    #color the working directory
-    if [ -z "$working_dir" ];
-    then
-        # color the root directory
-        working_dir="[$yellow/$white]"
-    else
-        # color the working directory
-        working_dir="[$yellow$working_dir$white]"
-    fi
+	#color the working directory
+	if [ -z "$working_dir" ];
+	then
+		# color the root directory
+		working_dir="[$yellow/$white]"
+	else
+		# color the working directory
+		working_dir="[$yellow$working_dir$white]"
+	fi
 
-    # build a new prompt line
-    PS1="$white[$green\h$white][$cyan\!$white]$site$working_dir$off \`if [ $code = 0 ];
-            then echo \[\e[36m\]»\\ $off;
-            else echo \[\e[31m\]»\\ $off;
-        fi;\`"
+	# color of the user
+	if [ $user == "root" ];
+	then
+		user="[$red$user$white]"
+	else
+		user="[$purple$user$white]"
+	fi
+
+	# build a new prompt line
+	PS1="$white$user[$green\h$white][$cyan\!$white]$working_dir$off \`if [ $code = 0 ];
+		then echo \[\e[36m\]»\\ $off;
+		else echo \[\e[31m\]»\\ $off;
+		fi;\`"
 }
 PROMPT_COMMAND='set_prompt'
 

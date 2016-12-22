@@ -1,5 +1,5 @@
 " ./vimrc created by Landon Sutherland
-" last edit 12/30/2015
+" last edit 9/11/2014
 
 " This must be first, because it changes other options as a side effect
 set nocompatible
@@ -7,9 +7,7 @@ set nocompatible
 
 "___ setting the look and feel of the editor ___________________________
 " sets syntax highlighting
-"colorscheme evolution
-"set syntax=on
-syntax on
+set syntax=on
 set filetype=on
 set hlsearch
 
@@ -29,6 +27,9 @@ set laststatus=2 " displays file names a the bottom
 set showmode " show what mode we are in
 set showcmd "show comman (partial) in the bottome right corner, on the last line
 set pastetoggle=<F2> " when in insert mode, press <F2> to enter paste mode and whant you paste won't be autoindented
+
+hi ColorColumn ctermbg=235
+set colorcolumn=80
 
 
 "___ abreviations for autocompleteing ____________________________________
@@ -53,21 +54,32 @@ inoremap :w <ESC>:w<CR>
 " Edit and source the vimrc file
 nnoremap <silent> <leader>ev :e ~/.vimrc<CR>
 nnoremap <silent> <leader>sv :so ~/.vimrc<CR>
+nnoremap <silent> <leader>f5 :call Nofluff()<CR>
+nnoremap <silent> <leader>f6 :call Yesfluff()<CR>
+nnoremap <silent> <leader>f7 :call Tab2()<CR>
 
 " turns on and off extra character for copy and pasting
 map <F5> :call Nofluff()<CR>
 map <F6> :call Yesfluff()<CR>
+map <F7> :call Tab2()<CR>
 
 
 "___ user defined functions _______________________________________________
 " used for cleaning editor for clean copy and pasting
 function! Nofluff()
-    set nolist " turnes off all extra chars
-    set nu! " turns off line numbers
+	set nolist " turnes off all extra chars
+	set nu! " turns off line numbers
 endfunction
-
+"
 " turns line numbers and whitespace caracters back on
 function! Yesfluff()
-    set list " turns on all extra chars
-    set nu " turns on line numbers
+	set list " turns on all extra charis
+	set nu " turns on line numbers
+endfunction
+
+" sets all tabing to 2 spaces instead of 4
+function! Tab2()
+	set ts=2
+	set shiftwidth=2
+	set expandtab
 endfunction
