@@ -3,8 +3,8 @@
 # Last edited: 12/22/2015
 
 # Get the aliases and functions
-if [ -f ~/.bashrc ]; then
-    . ~/.bashrc
+if [ -f ~/.bash_profile ]; then
+    . ~/.bash_profile
 fi
 
 # User specific environment and startup programs
