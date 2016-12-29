@@ -2,14 +2,6 @@
 # Created By Landon Sutherland
 # Last edited: 12/22/2015
 
-# Get the aliases and functions
-if [ -f ~/.bash_profile ]; then
-    . ~/.bash_profile
-fi
-
-# User specific environment and startup programs
-PATH=$PATH:$HOME/bin
-
 # alias's to make life easier
 alias sobash="source ~/.bash_profile"
 alias vibash="vim ~/.bash_profile && sobash"
@@ -75,4 +67,6 @@ function set_prompt()
 PROMPT_COMMAND='set_prompt'
 
 # Commands to run upon login
+# User specific environment and startup programs
+PATH=$PATH:$HOME/bin:./
 export PATH
