@@ -3,8 +3,8 @@
 # Last edited: 12/22/2015
 
 # alias's to make life easier
-alias sobash="source ~/.bash_profile"
-alias vibash="vim ~/.bash_profile && sobash"
+alias sobash="source ~/.bashrc"
+alias vibash="vim ~/.bashrc && sobash"
 alias vivim="vim ~/.vimrc"
 alias sshprom="ssh prometj6@66.147.244.148"
 
