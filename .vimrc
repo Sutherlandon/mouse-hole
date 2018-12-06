@@ -12,8 +12,9 @@ set filetype=on
 set hlsearch
 
 " sets tabs and indenting
-set ts=4
-set shiftwidth=4
+set ts=2
+set shiftwidth=2
+set expandtab
 set autoindent
 set list listchars=tab:¬\ ,trail:» " sets how to represenet whitespace chars like tab a trailing characters
 
@@ -47,6 +48,7 @@ nnoremap <silent> <C-l> :nohl<CR><C-l>
 " get out of insert mode and start scrolling, because that is probably what you meant to do
 inoremap jj <ESC><Down>
 inoremap kk <ESC><Up>
+inoremap ff <ESC>
 
 " writes a file even in insert mode
 inoremap :w <ESC>:w<CR>

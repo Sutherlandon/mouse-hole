@@ -3,10 +3,13 @@
 # Last edited: 12/22/2015
 
 # alias's to make life easier
-alias sobash="source ~/.bash_profile"
-alias vibash="vim ~/.bash_profile && sobash"
+alias ls="ls --color"
+alias ll="ls -lh"
+alias sobash="source ~/.bashrc"
+alias vibash="vim ~/.bashrc && sobash"
 alias vivim="vim ~/.vimrc"
-alias sshprom="ssh prometj6@66.147.244.148"
+alias reeldeal="cd /var/www/html/reeldealtheater"
+alias web="cd /var/www/html/"
 
 # Regular Colors
 # https://wiki.archlinux.org/index.php/Color_Bash_Prompt
